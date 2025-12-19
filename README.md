@@ -4,6 +4,8 @@
 [![GoDoc](https://godoc.org/github.com/tommynurwantoro/golog?status.svg)](https://godoc.org/github.com/tommynurwantoro/golog)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+![Golog Logo](golog.png)
+
 A high-performance, structured logging library for Go services. Golog provides standardized logging with automatic log rotation, context-aware tracing, and sensitive data masking.
 
 ## Features
