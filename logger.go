@@ -46,7 +46,7 @@ func NewLogger(conf Config) LoggerInterface {
 	}
 
 	rotatorTDR := &lumberjack.Logger{
-		Filename:   conf.FileTDRLocation,
+		Filename:   conf.FileTDRLocation + "/tdr.log",
 		MaxSize:    conf.FileMaxSize, // megabytes
 		MaxBackups: conf.FileMaxBackup,
 		MaxAge:     conf.FileMaxAge, // days
