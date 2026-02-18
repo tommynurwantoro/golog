@@ -72,6 +72,6 @@ func (c *Config) Validate() {
 		c.VersionFilePath = "version.txt"
 	}
 	if c.FileTDRLocation == "" {
-		c.FileTDRLocation = c.FileLocation + "/tdr.log"
+		c.FileTDRLocation = c.FileLocation
 	}
 }
