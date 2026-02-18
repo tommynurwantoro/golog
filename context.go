@@ -15,6 +15,10 @@ const (
 	PathKey contextKey = "path"
 )
 
+func (k contextKey) String() string {
+	return string(k)
+}
+
 // WithTraceID adds trace ID to the context
 func WithTraceID(ctx context.Context, traceID string) context.Context {
 	return context.WithValue(ctx, TraceIDKey, traceID)
@@ -58,4 +62,3 @@ func GetPath(ctx context.Context) (string, bool) {
 	v, ok := ctx.Value(PathKey).(string)
 	return v, ok
 }
-

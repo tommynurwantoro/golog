@@ -32,39 +32,48 @@ func Reset() {
 	singleton = nil
 }
 
-// Debug logs a message at DebugLevel.
-func Debug(ctx context.Context, msg string, fields ...zap.Field) {
+func WithContext(ctx context.Context) LoggerInterface {
 	mu.RLock()
 	defer mu.RUnlock()
 	if singleton != nil {
-		singleton.Debug(ctx, msg, fields...)
+		return singleton.WithContext(ctx)
+	}
+	return nil
+}
+
+// Debug logs a message at DebugLevel.
+func Debug(msg string, fields ...zap.Field) {
+	mu.RLock()
+	defer mu.RUnlock()
+	if singleton != nil {
+		singleton.Debug(msg, fields...)
 	}
 }
 
 // Info logs a message at InfoLevel.
-func Info(ctx context.Context, msg string, fields ...zap.Field) {
+func Info(msg string, fields ...zap.Field) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if singleton != nil {
-		singleton.Info(ctx, msg, fields...)
+		singleton.Info(msg, fields...)
 	}
 }
 
 // Warn logs a message at WarnLevel.
-func Warn(ctx context.Context, msg string, fields ...zap.Field) {
+func Warn(msg string, fields ...zap.Field) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if singleton != nil {
-		singleton.Warn(ctx, msg, fields...)
+		singleton.Warn(msg, fields...)
 	}
 }
 
 // Error logs a message at ErrorLevel.
-func Error(ctx context.Context, msg string, err error, fields ...zap.Field) {
+func Error(msg string, err error, fields ...zap.Field) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if singleton != nil {
-		singleton.Error(ctx, msg, err, fields...)
+		singleton.Error(msg, err, fields...)
 	}
 }
 
@@ -72,31 +81,31 @@ func Error(ctx context.Context, msg string, err error, fields ...zap.Field) {
 //
 // The logger then calls os.Exit(1), even if logging at FatalLevel is
 // disabled.
-func Fatal(ctx context.Context, msg string, err error, fields ...zap.Field) {
+func Fatal(msg string, err error, fields ...zap.Field) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if singleton != nil {
-		singleton.Fatal(ctx, msg, err, fields...)
+		singleton.Fatal(msg, err, fields...)
 	}
 }
 
 // Panic logs a message at PanicLevel.
 //
 // The logger then panics, even if logging at PanicLevel is disabled.
-func Panic(ctx context.Context, msg string, err error, fields ...zap.Field) {
+func Panic(msg string, err error, fields ...zap.Field) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if singleton != nil {
-		singleton.Panic(ctx, msg, err, fields...)
+		singleton.Panic(msg, err, fields...)
 	}
 }
 
 // TDR (Transaction Detail Request) consist of request and response log
-func TDR(ctx context.Context, model LogModel) {
+func TDR(model LogModel) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if singleton != nil {
-		singleton.TDR(ctx, model)
+		singleton.TDR(model)
 	}
 }
 

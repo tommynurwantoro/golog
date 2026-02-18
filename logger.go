@@ -32,6 +32,7 @@ var SENSITIVE_ATTR = map[string]bool{
 type Log struct {
 	logger    *zap.Logger
 	loggerTDR *zap.Logger
+	ctx       *context.Context
 }
 
 func NewLogger(conf Config) LoggerInterface {
@@ -131,50 +132,72 @@ func NewLogger(conf Config) LoggerInterface {
 	return &Log{
 		logger:    logger,
 		loggerTDR: loggerTDR,
+		ctx:       nil,
 	}
 }
 
-func (l *Log) Debug(ctx context.Context, msg string, fields ...zap.Field) {
-	ctxField := populateFieldFromContext(ctx)
-	fields = append(fields, ctxField...)
+func (l *Log) WithContext(ctx context.Context) LoggerInterface {
+	l.ctx = &ctx
+	return l
+}
+
+func (l *Log) Debug(msg string, fields ...zap.Field) {
+	if l.ctx != nil {
+		ctxField := populateFieldFromContext(*l.ctx)
+		fields = append(fields, ctxField...)
+	}
 	l.logger.Debug(msg, fields...)
 }
 
-func (l *Log) Info(ctx context.Context, msg string, fields ...zap.Field) {
-	ctxField := populateFieldFromContext(ctx)
-	fields = append(fields, ctxField...)
+func (l *Log) Info(msg string, fields ...zap.Field) {
+	if l.ctx != nil {
+		ctxField := populateFieldFromContext(*l.ctx)
+		fields = append(fields, ctxField...)
+	}
 	l.logger.Info(msg, fields...)
 }
 
-func (l *Log) Warn(ctx context.Context, msg string, fields ...zap.Field) {
-	ctxField := populateFieldFromContext(ctx)
-	fields = append(fields, ctxField...)
+func (l *Log) Warn(msg string, fields ...zap.Field) {
+	if l.ctx != nil {
+		ctxField := populateFieldFromContext(*l.ctx)
+		fields = append(fields, ctxField...)
+	}
 	l.logger.Warn(msg, fields...)
 }
 
-func (l *Log) Error(ctx context.Context, msg string, err error, fields ...zap.Field) {
-	ctxField := populateFieldFromContext(ctx)
-	fields = append(fields, ctxField...)
+func (l *Log) Error(msg string, err error, fields ...zap.Field) {
+	if l.ctx != nil {
+		ctxField := populateFieldFromContext(*l.ctx)
+		fields = append(fields, ctxField...)
+	}
 	fields = append(fields, zap.Any("error", toJSON(err)))
 	l.logger.Error(msg, fields...)
 }
 
-func (l *Log) Fatal(ctx context.Context, msg string, err error, fields ...zap.Field) {
-	ctxField := populateFieldFromContext(ctx)
-	fields = append(fields, ctxField...)
+func (l *Log) Fatal(msg string, err error, fields ...zap.Field) {
+	if l.ctx != nil {
+		ctxField := populateFieldFromContext(*l.ctx)
+		fields = append(fields, ctxField...)
+	}
 	fields = append(fields, zap.Any("error", toJSON(err)))
 	l.logger.Fatal(msg, fields...)
 }
 
-func (l *Log) Panic(ctx context.Context, msg string, err error, fields ...zap.Field) {
-	ctxField := populateFieldFromContext(ctx)
-	fields = append(fields, ctxField...)
+func (l *Log) Panic(msg string, err error, fields ...zap.Field) {
+	if l.ctx != nil {
+		ctxField := populateFieldFromContext(*l.ctx)
+		fields = append(fields, ctxField...)
+	}
 	fields = append(fields, zap.Any("error", toJSON(err)))
 	l.logger.Panic(msg, fields...)
 }
 
-func (l *Log) TDR(ctx context.Context, log LogModel) {
-	fields := populateFieldFromContext(ctx)
+func (l *Log) TDR(log LogModel) {
+	fields := make([]zap.Field, 0)
+	if l.ctx != nil {
+		ctxField := populateFieldFromContext(*l.ctx)
+		fields = append(fields, ctxField...)
+	}
 
 	fields = append(fields, zap.String("correlationId", log.CorrelationID))
 	fields = append(fields, zap.Any("header", removeAuth(log.Header)))
@@ -310,28 +333,20 @@ func populateFieldFromContext(ctx context.Context) []zap.Field {
 	fieldFromCtx := make([]zap.Field, 0, 4)
 
 	// Support both typed keys and string keys for backward compatibility
-	if v, ok := ctx.Value(TraceIDKey).(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("traceId", v))
-	} else if v, ok := ctx.Value("traceId").(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("traceId", v))
+	if v, ok := GetTraceID(ctx); ok {
+		fieldFromCtx = append(fieldFromCtx, zap.String(TraceIDKey.String(), v))
 	}
 
-	if v, ok := ctx.Value(SrcIPKey).(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("srcIP", v))
-	} else if v, ok := ctx.Value("srcIP").(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("srcIP", v))
+	if v, ok := GetSrcIP(ctx); ok {
+		fieldFromCtx = append(fieldFromCtx, zap.String(SrcIPKey.String(), v))
 	}
 
-	if v, ok := ctx.Value(PortKey).(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("port", v))
-	} else if v, ok := ctx.Value("port").(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("port", v))
+	if v, ok := GetPort(ctx); ok {
+		fieldFromCtx = append(fieldFromCtx, zap.String(PortKey.String(), v))
 	}
 
-	if v, ok := ctx.Value(PathKey).(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("path", v))
-	} else if v, ok := ctx.Value("path").(string); ok && v != "" {
-		fieldFromCtx = append(fieldFromCtx, zap.String("path", v))
+	if v, ok := GetPath(ctx); ok {
+		fieldFromCtx = append(fieldFromCtx, zap.String(PathKey.String(), v))
 	}
 
 	return fieldFromCtx
