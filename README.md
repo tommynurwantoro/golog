@@ -49,18 +49,18 @@ func main() {
         FileMaxAge:   30, // days
         Stdout:       true,
     }
-    
+
     logger := golog.Load(config)
     defer golog.Sync()
-    
+
     // Create context with trace information
     ctx := context.Background()
     ctx = golog.WithTraceID(ctx, "trace-123")
-    
-    // Log messages
-    logger.Info(ctx, "Application started")
-    logger.Debug(ctx, "Debug information")
-    logger.Warn(ctx, "Warning message")
+
+    // Log messages (bind context via WithContext)
+    logger.WithContext(ctx).Info("Application started")
+    logger.WithContext(ctx).Debug("Debug information")
+    logger.WithContext(ctx).Warn("Warning message")
 }
 ```
 
@@ -76,7 +76,7 @@ The `Config` struct allows you to customize logging behavior. All fields are val
 | `AppVer` | `string` | Yes | - | Application version (e.g., "1.0.0") |
 | `Env` | `string` | Yes | - | Environment: `"development"` or `"production"` |
 | `FileLocation` | `string` | Yes | - | Directory where system logs will be saved |
-| `FileTDRLocation` | `string` | No | `FileLocation + "/tdr.log"` | Path for TDR (Transaction Detail Request) logs |
+| `FileTDRLocation` | `string` | No | `FileLocation` | Directory for TDR logs (writes to `{FileTDRLocation}/tdr.log`) |
 | `FileMaxSize` | `int` | Yes | - | Maximum log file size in megabytes before rotation |
 | `FileMaxBackup` | `int` | Yes | - | Maximum number of backup files to keep |
 | `FileMaxAge` | `int` | Yes | - | Maximum age of backup files in days |
@@ -92,7 +92,7 @@ config := golog.Config{
     AppVer:         "1.0.0",
     Env:            "production",
     FileLocation:   "/var/log/myapp",
-    FileTDRLocation: "/var/log/myapp/tdr.log", // Optional
+    FileTDRLocation: "/var/log/myapp", // Optional (defaults to FileLocation)
     FileMaxSize:    500,                        // 500 MB
     FileMaxBackup:  10,                         // Keep 10 backups
     FileMaxAge:     90,                         // Keep for 90 days
@@ -128,18 +128,18 @@ func main() {
         FileMaxAge:   30,
         Stdout:       true,
     }
-    
+
     // Initialize singleton logger
     golog.Load(config)
     defer golog.Sync() // Important: flush logs on exit
-    
-    // Use from anywhere
+
+    // Use from anywhere - bind context via WithContext, then call log methods
     ctx := context.Background()
     ctx = golog.WithTraceID(ctx, "trace-123")
-    
-    golog.Info(ctx, "Application started")
-    golog.Debug(ctx, "Debug message", zap.String("key", "value"))
-    golog.Warn(ctx, "Warning message")
+
+    golog.WithContext(ctx).Info("Application started")
+    golog.WithContext(ctx).Debug("Debug message", zap.String("key", "value"))
+    golog.WithContext(ctx).Warn("Warning message")
 }
 ```
 
@@ -166,41 +166,43 @@ func main() {
         FileMaxAge:   90,
         Stdout:       false,
     }
-    
+
     logger := golog.NewLogger(config)
     defer logger.Sync() // Important: flush logs before exit
-    
+
     ctx := context.Background()
-    logger.Info(ctx, "Application started")
+    ctx = golog.WithTraceID(ctx, "trace-123")
+    logger.WithContext(ctx).Info("Application started")
 }
 ```
 
 ### Logging Methods
 
-All logging methods accept a context and message, with optional fields:
+Bind context via `WithContext(ctx)`, then call logging methods with message and optional fields:
 
 ```golang
 ctx := context.Background()
 ctx = golog.WithTraceID(ctx, "trace-123")
+log := golog.WithContext(ctx)
 
 // Info level logging
-golog.Info(ctx, "User logged in", zap.String("userID", "123"))
+log.Info("User logged in", zap.String("userID", "123"))
 
 // Debug level logging
-golog.Debug(ctx, "Processing request", zap.String("method", "GET"))
+log.Debug("Processing request", zap.String("method", "GET"))
 
 // Warning level logging
-golog.Warn(ctx, "Rate limit approaching", zap.Int("requests", 95))
+log.Warn("Rate limit approaching", zap.Int("requests", 95))
 
 // Error level logging
 err := errors.New("database connection failed")
-golog.Error(ctx, "Failed to connect", err, zap.String("host", "db.example.com"))
+log.Error("Failed to connect", err, zap.String("host", "db.example.com"))
 
 // Fatal level logging (exits application)
-// golog.Fatal(ctx, "Critical error", err)
+// log.Fatal("Critical error", err)
 
 // Panic level logging (panics)
-// golog.Panic(ctx, "Unexpected error", err)
+// log.Panic("Unexpected error", err)
 ```
 
 ### Context-Aware Logging
@@ -223,9 +225,9 @@ func handleRequest(ctx context.Context) {
     ctx = golog.WithSrcIP(ctx, "192.168.1.1")
     ctx = golog.WithPort(ctx, "8080")
     ctx = golog.WithPath(ctx, "/api/users")
-    
+
     // All logs will automatically include these fields
-    golog.Info(ctx, "Request received")
+    golog.WithContext(ctx).Info("Request received")
     
     // Retrieve values if needed
     traceID, ok := golog.GetTraceID(ctx)
@@ -271,17 +273,17 @@ func logAPIRequest(ctx context.Context, req, resp interface{}) {
         CorrelationID: "corr-456",
         Method:        "POST",
         Path:          "/api/users",
-        StatusCode:   "200",
+        StatusCode:    "200",
         HttpStatus:    200,
         Header:        requestHeaders,      // http.Header or fasthttp.RequestHeader
         Request:       req,                 // Request body (will be masked)
-        Response:      resp,               // Response body (will be masked)
+        Response:      resp,                // Response body (will be masked)
         ResponseTime:  150 * time.Millisecond,
         Error:         nil,                 // Error if any
         OtherData:     map[string]interface{}{"custom": "data"},
     }
-    
-    golog.TDR(ctx, tdr)
+
+    golog.WithContext(ctx).TDR(tdr)
 }
 ```
 
@@ -308,7 +310,7 @@ Masked values are replaced with `*****` in logs.
 
 By default, logs are written to files in the `FileLocation` directory:
 - System logs: `{FileLocation}/system.log`
-- TDR logs: `{FileTDRLocation}` (defaults to `{FileLocation}/tdr.log`)
+- TDR logs: `{FileTDRLocation}/tdr.log` (defaults to `{FileLocation}/tdr.log`)
 
 ### Console Output
 
@@ -378,11 +380,13 @@ Logs are written in JSON format for easy parsing:
    config.Stdout = true  // Development
    ```
 
-4. **Use context efficiently**: Pre-populate context at request entry point
+4. **Use context efficiently**: Pre-populate context at request entry point and bind once
    ```golang
    // At HTTP handler entry
    ctx = golog.WithTraceID(ctx, generateTraceID())
    ctx = golog.WithPath(ctx, r.URL.Path)
+   log := golog.WithContext(ctx)
+   // Use log.Info(), log.Error(), etc. throughout the handler
    ```
 
 ### Performance Characteristics
@@ -449,17 +453,18 @@ func TestSomething(t *testing.T) {
 ### Missing context fields
 
 - Ensure context is passed through your call chain
+- Bind context before logging: `golog.WithContext(ctx).Info(...)` or `logger.WithContext(ctx).Info(...)`
 - Use typed context keys (`golog.WithTraceID()`) for type safety
 - Check that context values are set before logging
 
 ## Examples
 
-See the [example_test.go](example_test.go) file for more comprehensive examples including:
+See the [logger_test.go](logger_test.go) file for usage examples including:
 - Basic logging
+- Context binding with `WithContext`
 - Error handling
 - TDR logging
-- Context usage
-- Configuration options
+- Configuration and validation
 
 ## Contributing
 

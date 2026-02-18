@@ -31,8 +31,7 @@ func TestNewLogger(t *testing.T) {
 	logger := NewLogger(config)
 	require.NotNil(t, logger)
 
-	ctx := context.Background()
-	logger.Info(ctx, "Test message")
+	logger.Info("Test message")
 
 	// Verify Sync works
 	err := logger.Sync()
@@ -62,9 +61,12 @@ func TestLoggerWithContext(t *testing.T) {
 	ctx = WithPort(ctx, "8080")
 	ctx = WithPath(ctx, "/test")
 
-	logger.Info(ctx, "Test with context")
-	logger.Debug(ctx, "Debug message", zap.String("key", "value"))
-	logger.Warn(ctx, "Warning message")
+	// Use WithContext to bind context to logger
+	logger = logger.WithContext(ctx)
+
+	logger.Info("Test with context")
+	logger.Debug("Debug message", zap.String("key", "value"))
+	logger.Warn("Warning message")
 }
 
 func TestLoggerError(t *testing.T) {
@@ -84,10 +86,8 @@ func TestLoggerError(t *testing.T) {
 	logger := NewLogger(config)
 	defer logger.Sync()
 
-	ctx := context.Background()
 	err := os.ErrNotExist
-
-	logger.Error(ctx, "Test error", err, zap.String("filename", "test.txt"))
+	logger.Error("Test error", err, zap.String("filename", "test.txt"))
 }
 
 func TestTDR(t *testing.T) {
@@ -109,6 +109,7 @@ func TestTDR(t *testing.T) {
 
 	ctx := context.Background()
 	ctx = WithTraceID(ctx, "trace-123")
+	logger = logger.WithContext(ctx)
 
 	tdr := LogModel{
 		CorrelationID: "corr-456",
@@ -121,7 +122,7 @@ func TestTDR(t *testing.T) {
 		ResponseTime:  100 * time.Millisecond,
 	}
 
-	logger.TDR(ctx, tdr)
+	logger.TDR(tdr)
 }
 
 func TestConfigValidation(t *testing.T) {
@@ -144,7 +145,7 @@ func TestConfigValidation(t *testing.T) {
 	config.Validate()
 
 	// Verify default FileTDRLocation was set
-	expectedTDRLocation := tmpDir + "/tdr.log"
+	expectedTDRLocation := tmpDir
 	assert.Equal(t, expectedTDRLocation, config.FileTDRLocation)
 	assert.Equal(t, zapcore.InfoLevel, config.LogLevel)
 
@@ -171,7 +172,6 @@ func TestFileTDRLocation(t *testing.T) {
 	logger := NewLogger(config)
 	defer logger.Sync()
 
-	ctx := context.Background()
 	tdr := LogModel{
 		CorrelationID: "test",
 		Method:        "GET",
@@ -180,7 +180,7 @@ func TestFileTDRLocation(t *testing.T) {
 		ResponseTime:  50 * time.Millisecond,
 	}
 
-	logger.TDR(ctx, tdr)
+	logger.TDR(tdr)
 
 	// Verify custom location is used
 	assert.Equal(t, customTDRLocation, config.FileTDRLocation)
@@ -204,8 +204,7 @@ func TestLogLevel(t *testing.T) {
 	logger := NewLogger(config)
 	defer logger.Sync()
 
-	ctx := context.Background()
-	logger.Debug(ctx, "Debug message should be logged")
+	logger.Debug("Debug message should be logged")
 }
 
 func TestVersionFilePath(t *testing.T) {
@@ -286,7 +285,7 @@ func TestContextKeysBackwardCompatibility(t *testing.T) {
 	defer logger.Sync()
 
 	// Should work with string keys
-	logger.Info(ctx, "Test backward compatibility")
+	logger.Info("Test backward compatibility")
 }
 
 func TestMaskField(t *testing.T) {
@@ -341,10 +340,11 @@ func BenchmarkLogging(b *testing.B) {
 
 	ctx := context.Background()
 	ctx = WithTraceID(ctx, "trace-123")
+	logger = logger.WithContext(ctx)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info(ctx, "Benchmark message", zap.Int("iteration", i))
+		logger.Info("Benchmark message", zap.Int("iteration", i))
 	}
 }
 

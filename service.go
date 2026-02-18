@@ -7,12 +7,13 @@ import (
 )
 
 type LoggerInterface interface {
-	Debug(ctx context.Context, message string, fields ...zap.Field)
-	Info(ctx context.Context, message string, fields ...zap.Field)
-	Warn(ctx context.Context, message string, fields ...zap.Field)
-	Error(ctx context.Context, message string, err error, fields ...zap.Field)
-	Fatal(ctx context.Context, message string, err error, fields ...zap.Field)
-	Panic(ctx context.Context, message string, err error, fields ...zap.Field)
-	TDR(ctx context.Context, tdr LogModel)
+	WithContext(ctx context.Context) LoggerInterface
+	Debug(message string, fields ...zap.Field)
+	Info(message string, fields ...zap.Field)
+	Warn(message string, fields ...zap.Field)
+	Error(message string, err error, fields ...zap.Field)
+	Fatal(message string, err error, fields ...zap.Field)
+	Panic(message string, err error, fields ...zap.Field)
+	TDR(tdr LogModel)
 	Sync() error
 }
